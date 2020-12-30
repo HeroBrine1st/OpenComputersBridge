@@ -1,12 +1,11 @@
 package ru.herobrine1st.ocbridge
 
+import ru.herobrine1st.ocbridge.network.SocketThread
 
-class OCBridge(port: Int) {
+
+class OCBridge(private val port: Int) {
     fun start() {
-        Thread{run()}.start()
-    }
-
-    private fun run() {
-        TODO()
+        SocketThread.port = port
+        SocketThread.start()
     }
 }

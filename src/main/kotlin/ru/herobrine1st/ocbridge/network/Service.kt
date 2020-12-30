@@ -2,7 +2,7 @@ package ru.herobrine1st.ocbridge.network
 
 import java.net.Socket
 
-class Service(private val username: String, private val password: String) {
+abstract class Service(val username: String, val password: String) {
     companion object {
         val services = HashSet<Service>()
     }
@@ -14,5 +14,8 @@ class Service(private val username: String, private val password: String) {
             throw IllegalArgumentException("Same username between two services")
         }
     }
-    fun add() = services.add(this)
+    // TODO реализовать нормально
+    // fun add() = services.add(this)
+
+    abstract fun onConnected()
 }

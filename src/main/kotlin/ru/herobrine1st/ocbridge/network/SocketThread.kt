@@ -2,23 +2,18 @@ package ru.herobrine1st.ocbridge.network
 
 import com.google.gson.Gson
 import com.google.gson.JsonObject
-import com.google.gson.JsonStreamParser
-import com.google.gson.stream.JsonWriter
+import com.google.gson.JsonSyntaxException
 import ru.herobrine1st.ocbridge.data.AuthenticationData
-import java.io.BufferedWriter
-import java.io.FileDescriptor
-import java.io.OutputStream
-import java.io.OutputStreamWriter
 import java.net.InetSocketAddress
-import java.net.ServerSocket
-import java.net.SocketAddress
 import java.nio.channels.SelectionKey
 import java.nio.channels.Selector
 import java.nio.channels.ServerSocketChannel
 import java.nio.channels.SocketChannel
+import kotlin.properties.Delegates
 
 
 object SocketThread: Thread() {
+    var port by Delegates.notNull<Int>()
     override fun run() {
         val selector = Selector.open()
         val listenerChannel = ServerSocketChannel.open()
@@ -41,14 +36,33 @@ object SocketThread: Thread() {
                     ch.finishConnect()
                 }
                 if(key.isReadable) {
-                    val service: Service
-                    if(Service.services.find { it.socket == ch.socket() }?.also { service = it } != null) {
-                        TODO()
-                    } else {
-                        val auth = Gson().fromJson(ch.socket().getInputStream().bufferedReader(), AuthenticationData::class.java)
-                        if(auth.username == null || auth.password == null) {
-
+                    val service = Service.services.find { it.socket == ch.socket() }
+                    if(service != null) {
+                        try {
+                            ch.socket().getInputStream().bufferedReader().use { reader ->
+                                val json = Gson().fromJson(reader, JsonObject::class.java)
+                                TODO("Later")
+                            }
+                        } catch (exc: JsonSyntaxException) {
+                            ch.close()
                         }
+                    } else {
+                        try {
+                            ch.socket().getInputStream().bufferedReader().use { reader ->
+                                val auth = Gson().fromJson(reader, AuthenticationData::class.java)
+                                if(auth.username == null || auth.password == null) {
+                                    ch.close()
+                                }
+                                val found = Service.services.find { it.isReady && it.username == auth.username && it.password == auth.password }
+                                if(found != null) {
+                                    found.socket = ch.socket()
+                                    found.onConnected()
+                                }
+                            }
+                        } catch (exc: JsonSyntaxException) {
+                            ch.close()
+                        }
+
                     }
                 }
             }
