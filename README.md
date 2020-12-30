@@ -1,4 +1,4 @@
-# OpenComputersBridge
+# OpenComputersBridge [WIP]
 Библиотека для Kotlin/Java с клиентом OpenComputers для интеграции вашего приложения с OpenComputers.
 
 # Планы
