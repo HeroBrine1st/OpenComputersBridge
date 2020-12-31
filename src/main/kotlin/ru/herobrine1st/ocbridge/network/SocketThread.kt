@@ -5,7 +5,10 @@ import com.google.gson.JsonObject
 import com.google.gson.JsonSyntaxException
 import ru.herobrine1st.ocbridge.OCBridge
 import ru.herobrine1st.ocbridge.data.AuthenticationData
+import ru.herobrine1st.ocbridge.data.Response
+import ru.herobrine1st.ocbridge.data.RootStructure
 import java.net.InetSocketAddress
+import java.nio.ByteBuffer
 import java.nio.channels.SelectionKey
 import java.nio.channels.Selector
 import java.nio.channels.ServerSocketChannel
@@ -18,45 +21,67 @@ class SocketThread(private val bridge: OCBridge, private val port: Int): Thread(
         val listenerChannel = ServerSocketChannel.open()
         listenerChannel.socket().reuseAddress = true
         listenerChannel.socket().bind(InetSocketAddress(port))
+        listenerChannel.configureBlocking(false)
         listenerChannel.register(selector, SelectionKey.OP_ACCEPT)
         while(true) {
-            selector.select()
-            selector.selectedKeys().forEach { key ->
+            selector.select(5000)
+            selector.selectedKeys().iterator().forEach { key ->
                 if(key.isAcceptable) {
-                    val ch = (key.channel() as ServerSocketChannel).accept()
+                    val ch = (key.channel() as ServerSocketChannel).accept() ?: return@forEach
+                    ch.configureBlocking(false)
                     ch.register(selector, SelectionKey.OP_READ)
-                    val writer = ch.socket().getOutputStream().bufferedWriter()
-                    writer.write(JsonObject().addProperty("type", "AUTHORIZATION_REQUIRED").toString())
-                    writer.newLine()
-                    writer.close()
+                    val json = JsonObject()
+                    json.addProperty("type", "AUTHORIZATION_REQUIRED")
+                    ch.write(ByteBuffer.wrap("$json\n".toByteArray()))
+                    return@forEach
                 }
                 val ch = (key.channel() as SocketChannel)
                 if(key.isConnectable) {
                     ch.finishConnect()
                 }
                 if(key.isReadable) {
-                    val service = bridge.services.find { it.socket == ch.socket() }
+                    val stringBuilder = StringBuilder()
+                    val buf = ByteBuffer.allocate(256)
+                    var read = 0
+                    while (ch.read(buf).also { read = it } > 0) {
+                        buf.flip()
+                        val bytes = ByteArray(buf.limit())
+                        buf.get(bytes)
+                        stringBuilder.append(String(bytes))
+                        buf.clear()
+                    }
+                    val str = stringBuilder.toString()
+                    val service = bridge.services.find { it.channel == ch }
                     if(service != null) {
                         try {
-                            ch.socket().getInputStream().bufferedReader().use { reader ->
-                                val json = Gson().fromJson(reader, JsonObject::class.java)
-                                TODO("Later")
+                            if(read < 0) {
+                                service.disconnect()
+                            }
+                            if(str.isEmpty()) return@forEach
+                            val response = Gson().fromJson(str, Response::class.java)
+                            if(response.hash == null || response.type == null) return@forEach
+                            if(response.type == Response.Type.PONG) {
+                                val hash = response.hash
+                                service.pending.removeIf { it.hash == hash }
+                                ch.write(ByteBuffer.wrap("Ok".toByteArray()))
+                            }else if(response.type == Response.Type.RESULT) {
+                                service.callbacks.remove(response.hash)?.invoke(response.result ?: return@forEach)
                             }
                         } catch (exc: JsonSyntaxException) {
-                            ch.close()
+                            service.disconnect()
                         }
                     } else {
                         try {
-                            ch.socket().getInputStream().bufferedReader().use { reader ->
-                                val auth = Gson().fromJson(reader, AuthenticationData::class.java)
-                                if(auth.username == null || auth.password == null) {
-                                    ch.close()
-                                }
-                                val found = bridge.services.find { it.isReady && it.username == auth.username && it.password == auth.password }
-                                if(found != null) {
-                                    found.socket = ch.socket()
-                                    found.onConnected()
-                                }
+                            if(read < 0) ch.close()
+                            if(str.isEmpty()) return@forEach
+                            val auth = Gson().fromJson(str, AuthenticationData::class.java)
+                            if(auth.type == null || auth.type != "AUTHENTICATION" || auth.name == null || auth.password == null) {
+                                ch.close()
+                            }
+                            val found = bridge.services.find { !it.isReady && it.name == auth.name && it.password == auth.password }
+                            if(found != null) {
+                                found.channel = ch
+                                found.onConnect()
                             }
                         } catch (exc: JsonSyntaxException) {
                             ch.close()
@@ -64,6 +89,11 @@ class SocketThread(private val bridge: OCBridge, private val port: Int): Thread(
                     }
                 }
             }
+            selector.keys().filter { !it.isValid }.forEach { key ->
+                bridge.services.find { it.channel == (key.channel() as SocketChannel) }?.channel = null
+                key.cancel()
+            }
+            bridge.services.forEach { it.pingTick() }
         }
     }
 }

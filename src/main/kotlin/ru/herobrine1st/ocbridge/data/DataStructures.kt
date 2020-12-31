@@ -1,5 +1,6 @@
 package ru.herobrine1st.ocbridge.data
 
+import com.google.gson.JsonArray
 import com.google.gson.JsonPrimitive
 
 /*
@@ -32,13 +33,25 @@ open class CallStackEntry(open val type: Type) {
     enum class Type { CODE, FUNCTION }
 }
 
-class FunctionEntry(val function: List<String>, val args: List<JsonPrimitive>): CallStackEntry(Type.FUNCTION)
+class FunctionEntry(val function: Collection<String>, val args: Collection<JsonPrimitive>): CallStackEntry(Type.FUNCTION)
 class CodeEntry(val code: String): CallStackEntry(Type.CODE)
-data class AuthenticationData(val username: String?, val password: String?)
+data class AuthenticationData(val type: String?, val name: String?, val password: String?)
 
 
-class RootStructure(val type: Type, val hash: Long, val call_stack: List<CallStackEntry>?) {
+open class RootStructure(val type: Type, hash: Long, open val call_stack: List<CallStackEntry>?) {
+    val hash: String = hash.toString()
+    @Transient val timestamp = System.nanoTime()
     enum class Type {
         PING, EXECUTE
+    }
+}
+
+class PingRequest(hash: Long): RootStructure(Type.PING, hash, null) {
+    @Transient override val call_stack: Nothing? = null
+}
+
+class Response(val type: Type?, val result: JsonArray?, val hash: String?) {
+    enum class Type {
+        PONG, RESULT
     }
 }
