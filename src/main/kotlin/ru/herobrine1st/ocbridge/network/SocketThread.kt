@@ -3,22 +3,21 @@ package ru.herobrine1st.ocbridge.network
 import com.google.gson.Gson
 import com.google.gson.JsonObject
 import com.google.gson.JsonSyntaxException
+import ru.herobrine1st.ocbridge.OCBridge
 import ru.herobrine1st.ocbridge.data.AuthenticationData
 import java.net.InetSocketAddress
 import java.nio.channels.SelectionKey
 import java.nio.channels.Selector
 import java.nio.channels.ServerSocketChannel
 import java.nio.channels.SocketChannel
-import kotlin.properties.Delegates
 
 
-object SocketThread: Thread() {
-    var port by Delegates.notNull<Int>()
+class SocketThread(private val bridge: OCBridge, private val port: Int): Thread() {
     override fun run() {
         val selector = Selector.open()
         val listenerChannel = ServerSocketChannel.open()
         listenerChannel.socket().reuseAddress = true
-        listenerChannel.socket().bind(InetSocketAddress(1024))
+        listenerChannel.socket().bind(InetSocketAddress(port))
         listenerChannel.register(selector, SelectionKey.OP_ACCEPT)
         while(true) {
             selector.select()
@@ -36,7 +35,7 @@ object SocketThread: Thread() {
                     ch.finishConnect()
                 }
                 if(key.isReadable) {
-                    val service = Service.services.find { it.socket == ch.socket() }
+                    val service = bridge.services.find { it.socket == ch.socket() }
                     if(service != null) {
                         try {
                             ch.socket().getInputStream().bufferedReader().use { reader ->
@@ -53,7 +52,7 @@ object SocketThread: Thread() {
                                 if(auth.username == null || auth.password == null) {
                                     ch.close()
                                 }
-                                val found = Service.services.find { it.isReady && it.username == auth.username && it.password == auth.password }
+                                val found = bridge.services.find { it.isReady && it.username == auth.username && it.password == auth.password }
                                 if(found != null) {
                                     found.socket = ch.socket()
                                     found.onConnected()
@@ -62,7 +61,6 @@ object SocketThread: Thread() {
                         } catch (exc: JsonSyntaxException) {
                             ch.close()
                         }
-
                     }
                 }
             }
