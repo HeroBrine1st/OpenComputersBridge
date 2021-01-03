@@ -7,8 +7,6 @@ import ru.herobrine1st.ocbridge.data.CodeEntry
 import ru.herobrine1st.ocbridge.data.FunctionEntry
 import ru.herobrine1st.ocbridge.data.RequestStructure
 import ru.herobrine1st.ocbridge.network.Service
-import java.sql.Timestamp
-import kotlin.jvm.Throws
 
 data class PreviousEntryResult(val index: Int)
 

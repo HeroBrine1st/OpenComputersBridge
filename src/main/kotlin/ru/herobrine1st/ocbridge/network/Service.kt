@@ -19,7 +19,7 @@ abstract class Service(val name: String, val password: String) {
         }
     val pending = ArrayList<RequestStructure>()
     val callbacks = HashMap<String, (Response) -> Unit>()
-    var lastPingTimestamp = 0L
+    private var lastPingTimestamp = 0L
     val isReady
         get() = channel != null
 
