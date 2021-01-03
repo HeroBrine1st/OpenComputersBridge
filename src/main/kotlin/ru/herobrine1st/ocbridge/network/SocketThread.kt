@@ -11,8 +11,20 @@ import java.nio.channels.SelectionKey
 import java.nio.channels.Selector
 import java.nio.channels.ServerSocketChannel
 import java.nio.channels.SocketChannel
+import kotlin.properties.Delegates
 
-class SocketThread(private val bridge: OCBridge, private val port: Int): Thread() {
+object SocketThread: Thread() {
+    var shouldStop = false
+    var port by Delegates.notNull<Int>()
+    fun start(port: Int) {
+        this.port = port
+        super.start()
+    }
+
+    override fun start() {
+        throw IllegalStateException()
+    }
+
     override fun run() {
         val selector = Selector.open()
         val listenerChannel = ServerSocketChannel.open()
@@ -35,6 +47,7 @@ class SocketThread(private val bridge: OCBridge, private val port: Int): Thread(
                     ch.finishConnect()
                 }
                 if(key.isReadable) {
+                    val timestamp = System.nanoTime()
                     val stringBuilder = StringBuilder()
                     val buf = ByteBuffer.allocate(256)
                     var read: Int
@@ -46,7 +59,7 @@ class SocketThread(private val bridge: OCBridge, private val port: Int): Thread(
                         buf.clear()
                     }
                     val str = stringBuilder.toString()
-                    val service = bridge.services.find { it.channel == ch }
+                    val service = OCBridge.services.find { it.channel == ch }
                     if(service != null) {
                         try {
                             if(read < 0) {
@@ -54,16 +67,21 @@ class SocketThread(private val bridge: OCBridge, private val port: Int): Thread(
                                 ch.close()
                             }
                             if(str.isEmpty()) return@forEach
-                            val timestamp = System.nanoTime()
                             val response = Gson().fromJson(str, ResponseStructure::class.java)
-                            if(response.hash == null || response.type == null) return@forEach
-                            if(response.type == ResponseStructure.Type.PONG) {
-                                service.pending.removeIf { it.hash == response.hash }
-                            }else if(response.type == ResponseStructure.Type.RESULT) {
-                                val response1 = Response(response.success ?: return@forEach, response.result ?: return@forEach,
-                                    service.pending.find { it.hash == response.hash } ?: return@forEach, timestamp)
-                                service.callbacks.remove(response.hash)?.invoke(response1)
-                                service.pending.removeIf { it.hash == response.hash }
+                            when (response.type) {
+                                null -> return@forEach
+                                ResponseStructure.Type.EVENT -> TODO()
+                                ResponseStructure.Type.MESSAGE -> TODO()
+                                ResponseStructure.Type.PONG -> { // Опускаем проверку на наличие поля hash - оно обязательно,
+                                                                 // но его отсуствие не вызовет ошибок
+                                    service.pending.removeIf { it.hash == response.hash }
+                                }
+                                ResponseStructure.Type.RESULT -> {
+                                    val response1 = Response(response.success ?: return@forEach, response.result ?: return@forEach,
+                                        service.pending.find { it.hash == response.hash } ?: return@forEach, timestamp)
+                                    service.callbacks.remove(response.hash)?.invoke(response1)
+                                    service.pending.removeIf { it.hash == response.hash }
+                                }
                             }
                         } catch (exc: JsonSyntaxException) {
                             service.disconnect()
@@ -77,15 +95,15 @@ class SocketThread(private val bridge: OCBridge, private val port: Int): Thread(
                             if(auth.type != "AUTHENTICATION" || auth.name == null || auth.password == null) {
                                 ch.close()
                             }
-                            if(!bridge.services.any { it.name == auth.name }) {
+                            if(!OCBridge.services.any { it.name == auth.name }) {
                                 ch.write(ByteBuffer.wrap("${Gson().toJson(NotFound)}\n".toByteArray()))
                                 return@forEach
                             }
-                            if(!bridge.services.any { it.name == auth.name && !it.isReady }) {
+                            if(!OCBridge.services.any { it.name == auth.name && !it.isReady }) {
                                 ch.write(ByteBuffer.wrap("${Gson().toJson(ServiceBusy)}\n".toByteArray()))
                                 return@forEach
                             }
-                            val found = bridge.services.find { !it.isReady && it.name == auth.name && it.password == auth.password }
+                            val found = OCBridge.services.find { !it.isReady && it.name == auth.name && it.password == auth.password }
                             if(found != null) {
                                 found.channel = ch
                                 found.onConnect()
@@ -99,10 +117,17 @@ class SocketThread(private val bridge: OCBridge, private val port: Int): Thread(
                 }
             }
             selector.keys().filter { !it.isValid }.forEach { key ->
-                bridge.services.find { it.channel == (key.channel() as SocketChannel) }?.disconnect()
+                OCBridge.services.find { it.channel == (key.channel() as SocketChannel) }?.disconnect()
                 key.cancel()
             }
-            bridge.services.forEach { it.pingTick() }
+            OCBridge.services.forEach { it.pingTick() }
+            if(shouldStop) {
+                break
+            }
+        }
+        selector.keys().forEach {
+            it.channel().close()
+            it.cancel()
         }
     }
 }

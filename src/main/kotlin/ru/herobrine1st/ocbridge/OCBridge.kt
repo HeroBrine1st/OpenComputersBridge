@@ -2,28 +2,37 @@ package ru.herobrine1st.ocbridge
 
 import ru.herobrine1st.ocbridge.network.Service
 import ru.herobrine1st.ocbridge.network.SocketThread
+import java.lang.RuntimeException
 
-
-
-class OCBridge(private val port: Int) {
+object OCBridge {
     val services = HashSet<Service>()
-    fun start() {
-        val thread = SocketThread(this, port)
-        thread.start()
-        thread.join()
+    fun start(port: Int) {
+        SocketThread.start(port)
+        SocketThread.join() // TODO
     }
 
-    infix fun add(service: Service) = services.add(service)
-
-    companion object {
-        @JvmStatic
-        fun main(args: Array<String>) {
-            val bridge = OCBridge(1024)
-            bridge add TestService1()
-            bridge add TestService2()
-            bridge.start()
-        }
+    /**
+     * Stops OCBridge thread softly. Thread will stop in 5 seconds at maximum.
+     * All connections will be closed, but not every operation will be finished.
+     */
+    fun stop() {
+        SocketThread.shouldStop = true
     }
+
+    fun add(service: Service) {
+        if(services.any { it.name == service.name })
+            throw RuntimeException("Service with name \"${service.name}\" already exists")
+        services.add(service)
+    }
+
+
+    @JvmStatic
+    fun main(args: Array<String>) {
+        this.add(TestService1())
+        this.add(TestService2())
+        this.start(1024)
+    }
+
 
     class TestService1: Service("1", "abcd") {
         override fun onConnect() {

@@ -39,6 +39,7 @@ abstract class Service(val name: String, val password: String) {
     fun executeRequest(structure: RequestStructure, callback: (Response) -> Unit) {
         if(!isReady) throw IllegalStateException()
         channel!!.write(ByteBuffer.wrap("${Gson().toJson(structure)}\n".toByteArray()))
+        structure.timestamp = System.nanoTime()
         callbacks[structure.hash] = callback
         pending += structure
     }
