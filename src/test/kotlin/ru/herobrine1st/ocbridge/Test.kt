@@ -16,9 +16,12 @@ class Test {
 //        println(Gson().toJson(a, RootStructure::class.java))
 //        println(Gson().toJson(PingRequest(2334145), PingRequest::class.java))
 //        RootStructure.Type.valueOf("1234")
-        val a = Gson().fromJson("{\"type\":\"PONG1\", \"hash\":\"234234\"}", ResponseStructure::class.java)
-        println(a.hash)
-        println(a.type)
-        println(a.result)
+//        val a = Gson().fromJson("{\"type\":\"PONG1\", \"hash\":\"234234\"}", ResponseStructure::class.java)
+//        println(a.hash)
+//        println(a.type)
+//        println(a.result)
+//
+        val b = Gson().toJson(AuthorizationRequired())
+        print(b)
     }
 }

@@ -4,10 +4,10 @@ component = require "component"
 event = require "event"
 
 properties =
-    name: "ship"
-    password: "12345678"
-    remote_address: "0.0.0.0"
-    remote_port: 0
+    name: "1"
+    password: "abcd"
+    remote_address: "217.25.230.249"
+    remote_port: 1024
     event_blacklist: 
         internet_ready: true
         touch: true
@@ -20,6 +20,8 @@ properties =
         clipboard: true
         chat_message: true
 
+local conn
+
 json_encode = (tbl) ->
     return "#{json.encode(tbl)}\r\n"
 
@@ -31,26 +33,69 @@ process_method = (root, method, args) ->
         root = _next
     return pcall root, table.unpack args
 
+optrequire = (...) ->
+  success, module = pcall(require, ...)
+  if success
+    return module
 
-conn = internet.socket(properties.remote_address, properties.remote_port)
+split = (source, delimiters) ->
+  [match for match in string.gmatch(source, '([^'..delimiters..']+)')]
+  
+
+env = setmetatable({}, { -- Эта метатаблица позволяет отделить окружение исполняемого кода от глобального, сохраняя непосредственную связь
+  __index: (_, k) ->
+    return _ENV[k] or optrequire(k)
+  __pairs: (t) -> -- Это спизжено из /lib/core/lua_shell.lua и не нужно, но пусть будет
+    return (_, key) -> 
+      k, v = next(t, key)
+      if not k and t == env then
+        t = _ENV
+        k, v = next(t)
+      if not k and t == _ENV then
+        t = package.loaded
+        k, v = next(t)
+      return k, v})
+
+env.send_message = (msg) -> 
+    conn\write json_encode
+        type: "MESSAGE"
+        message: msg
+
+execute_code = (code) ->
+    res = {load(code, "=OCBridge", "t", env)}
+    if not res[1]
+        return res
+    res2 = {pcall(res[1])}
+    return res2
+
 while true
-    socket_data = conn\read!
-    continue if data == ""
-    if not data
+    if conn == nil
+        print("No connection found. Trying to connect...")
         conn = internet.socket(properties.remote_address, properties.remote_port)
-    else
-        local success, data
-        while not success
-            success, data = pcall(json.decode, socket_data)
-            new_data = conn\read!
-            data += new_data
-            if new_data == ""
-                break
+        continue
+    
+    socket_data = conn\read!
+    while true
+        new_data = conn\read!
+        if new_data == nil
+            socket_data = nil
+            break
+        if new_data == ""
+            break
+        socket_data = socket_data .. new_data
+
+    continue if socket_data == ""
+    if not socket_data
+        conn = nil
+        continue
+    for request in *split(socket_data, "\n")
+        success, data = pcall(json.decode, request)
         continue if not success
         if data.type == "AUTHORIZATION_REQUIRED"
             conn\write json_encode 
+                type: "AUTHENTICATION"
                 name: properties.name, 
-                password: name.password
+                password: properties.password
         elseif data.type == "SERVICE_NOT_FOUND"
             print("Wrong service name")
             break
@@ -60,39 +105,51 @@ while true
         elseif data.type == "WRONG_PASSWORD"
             print("Wrong password")
             break
-        elseif data.type == "PING"
+        elseif data.type == "PING" -- socket heartbeat
             conn\write json_encode 
                 type: "PONG"
                 hash: data.hash
         elseif data.type == "EXECUTE"
-            local stack = {}
+            stack = {}
             local success, result
-            _ENV.getResultFromStack = (index) -> stack[index]
+            env.getResultFromStack = (index) -> stack[index]
             for call in *data.call_stack
                 if call.type == "CODE"
-                    success, result = load(call.code)
-                    if not success:
-                        break
-                    success, result = pcall(result)
-                    if not success:
+                    res = execute_code(call.code)
+                    success = res[1]
+                    result = {table.unpack(res, 2, #res)}
+                    if not success
                         break
                 elseif call.type == "FUNCTION"
                     args = for arg in *call.args
                         if type(arg) == "string"
-                            match = string.match(arg, "^$(%d+)$")
+                            match = string.match arg, "^$(%d+)$"
                             if match
                                 stack[match]
                             else
                                 arg
-                    success, result = process_method(package.loaded, call.function, args)
-                    if not success:
+                        else
+                            arg
+                    res = {process_method package.loaded, call.function, args}
+                    success = res[1]
+                    result = {table.unpack(res, 2, #res)}
+                    if not success
                         break
-            _ENV.getResultFromStack = nil
             conn\write json_encode
                 type: "RESULT"
                 hash: data.hash
                 result: result
                 success: success
+    e = {event.pull(0.05)}
+    events = {}
+    while #e > 0
+        if not properties.event_blacklist[e[1]]
+            table.insert(events, e)
+        e = {event.pull(0.05)}
+    if #events > 0
+        conn\write json_encode
+                events: events
+                type: "EVENT"
 
 
 

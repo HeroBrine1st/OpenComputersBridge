@@ -1,5 +1,6 @@
 package ru.herobrine1st.ocbridge
 
+import com.google.gson.JsonArray
 import ru.herobrine1st.ocbridge.network.Service
 import ru.herobrine1st.ocbridge.network.SocketThread
 import java.lang.RuntimeException
@@ -13,7 +14,7 @@ object OCBridge {
 
     /**
      * Stops OCBridge thread softly. Thread will stop in 5 seconds at maximum.
-     * All connections will be closed, but not every operation will be finished.
+     * All connections will be closed, but not every pending operation will be finished.
      */
     fun stop() {
         SocketThread.shouldStop = true
@@ -23,35 +24,6 @@ object OCBridge {
         if(services.any { it.name == service.name })
             throw RuntimeException("Service with name \"${service.name}\" already exists")
         services.add(service)
-    }
-
-
-    @JvmStatic
-    fun main(args: Array<String>) {
-        this.add(TestService1())
-        this.add(TestService2())
-        this.start(1024)
-    }
-
-
-    class TestService1: Service("1", "abcd") {
-        override fun onConnect() {
-            println("Connected 1")
-        }
-
-        override fun onDisconnect() {
-            println("Disconnected 1")
-        }
-    }
-
-    class TestService2: Service("2", "abcd") {
-        override fun onConnect() {
-            println("Connected 1")
-        }
-
-        override fun onDisconnect() {
-            println("Disconnected 1")
-        }
     }
 
 }

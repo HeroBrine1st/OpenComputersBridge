@@ -2,7 +2,9 @@
 
 package ru.herobrine1st.ocbridge.data
 
+import com.google.gson.GsonBuilder
 import com.google.gson.JsonArray
+import com.google.gson.JsonObject
 import com.google.gson.JsonPrimitive
 import java.lang.IllegalStateException
 
@@ -34,20 +36,21 @@ import java.lang.IllegalStateException
 
 // Authorization
 
-object AuthorizationRequired {
-    const val type = "AUTHORIZATION_REQUIRED"
+
+class AuthorizationRequired {
+    val type = "AUTHORIZATION_REQUIRED"
 }
 
-object ServiceBusy {
-    const val type = "SERVICE_BUSY"
+class ServiceBusy {
+    val type = "SERVICE_BUSY"
 }
 
-object NotFound {
-    const val type = "SERVICE_NOT_FOUND"
+class NotFound {
+    val type = "SERVICE_NOT_FOUND"
 }
 
-object WrongPassword {
-    const val type = "WRONG_PASSWORD"
+class WrongPassword {
+    val type = "WRONG_PASSWORD"
 }
 
 
@@ -63,11 +66,7 @@ data class AuthenticationData(val type: String?, val name: String?, val password
 
 open class RequestStructure(val type: Type, hash: Long, open val call_stack: List<CallStackEntry>?) {
     val hash: String = hash.toString()
-    @Transient var timestamp: Long = -1 // Will be initialized immediately after sending
-        set(value) {
-            if(field != -1L) throw IllegalStateException()
-            field = value
-        }
+    @Transient var timestamp = System.nanoTime()
     enum class Type {
         PING, EXECUTE
     }
@@ -78,7 +77,7 @@ class PingRequest(hash: Long): RequestStructure(Type.PING, hash, null) {
 }
 
 class ResponseStructure(val type: Type?, val result: JsonArray?, val hash: String?, val success: Boolean?,
-                        val message: String?, val event: JsonArray?) {
+                        val message: String?, val events: JsonArray?) {
     enum class Type {
         PONG, RESULT, MESSAGE, EVENT
     }
