@@ -1,3 +1,5 @@
+@file:Suppress("unused")
+
 package ru.herobrine1st.ocbridge.data
 
 import com.google.gson.JsonArray
@@ -29,16 +31,36 @@ import com.google.gson.JsonPrimitive
 
  */
 
+// Authorization
+
+object AuthorizationRequired {
+    const val type = "AUTHORIZATION_REQUIRED"
+}
+
+object ServiceBusy {
+    const val type = "SERVICE_BUSY"
+}
+
+object NotFound {
+    const val type = "SERVICE_NOT_FOUND"
+}
+
+object WrongPassword {
+    const val type = "WRONG_PASSWORD"
+}
+
 open class CallStackEntry(open val type: Type) {
     enum class Type { CODE, FUNCTION }
 }
+
+
 
 class FunctionEntry(val function: Collection<String>, val args: Collection<JsonPrimitive>): CallStackEntry(Type.FUNCTION)
 class CodeEntry(val code: String): CallStackEntry(Type.CODE)
 data class AuthenticationData(val type: String?, val name: String?, val password: String?)
 
 
-open class RootStructure(val type: Type, hash: Long, open val call_stack: List<CallStackEntry>?) {
+open class RequestStructure(val type: Type, hash: Long, open val call_stack: List<CallStackEntry>?) {
     val hash: String = hash.toString()
     @Transient val timestamp = System.nanoTime()
     enum class Type {
@@ -46,11 +68,11 @@ open class RootStructure(val type: Type, hash: Long, open val call_stack: List<C
     }
 }
 
-class PingRequest(hash: Long): RootStructure(Type.PING, hash, null) {
+class PingRequest(hash: Long): RequestStructure(Type.PING, hash, null) {
     @Transient override val call_stack: Nothing? = null
 }
 
-class Response(val type: Type?, val result: JsonArray?, val hash: String?) {
+class ResponseStructure(val type: Type?, val result: JsonArray?, val hash: String?, val success: Boolean?) {
     enum class Type {
         PONG, RESULT
     }

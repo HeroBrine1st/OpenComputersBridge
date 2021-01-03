@@ -1,19 +1,16 @@
 package ru.herobrine1st.ocbridge.network
 
 import com.google.gson.Gson
-import com.google.gson.JsonObject
 import com.google.gson.JsonSyntaxException
 import ru.herobrine1st.ocbridge.OCBridge
-import ru.herobrine1st.ocbridge.data.AuthenticationData
-import ru.herobrine1st.ocbridge.data.Response
-import ru.herobrine1st.ocbridge.data.RootStructure
+import ru.herobrine1st.ocbridge.data.*
+import ru.herobrine1st.ocbridge.integration.Response
 import java.net.InetSocketAddress
 import java.nio.ByteBuffer
 import java.nio.channels.SelectionKey
 import java.nio.channels.Selector
 import java.nio.channels.ServerSocketChannel
 import java.nio.channels.SocketChannel
-
 
 class SocketThread(private val bridge: OCBridge, private val port: Int): Thread() {
     override fun run() {
@@ -30,9 +27,7 @@ class SocketThread(private val bridge: OCBridge, private val port: Int): Thread(
                     val ch = (key.channel() as ServerSocketChannel).accept() ?: return@forEach
                     ch.configureBlocking(false)
                     ch.register(selector, SelectionKey.OP_READ)
-                    val json = JsonObject()
-                    json.addProperty("type", "AUTHORIZATION_REQUIRED")
-                    ch.write(ByteBuffer.wrap("$json\n".toByteArray()))
+                    ch.write(ByteBuffer.wrap("${Gson().toJson(AuthorizationRequired)}\n".toByteArray()))
                     return@forEach
                 }
                 val ch = (key.channel() as SocketChannel)
@@ -42,7 +37,7 @@ class SocketThread(private val bridge: OCBridge, private val port: Int): Thread(
                 if(key.isReadable) {
                     val stringBuilder = StringBuilder()
                     val buf = ByteBuffer.allocate(256)
-                    var read = 0
+                    var read: Int
                     while (ch.read(buf).also { read = it } > 0) {
                         buf.flip()
                         val bytes = ByteArray(buf.limit())
@@ -56,32 +51,46 @@ class SocketThread(private val bridge: OCBridge, private val port: Int): Thread(
                         try {
                             if(read < 0) {
                                 service.disconnect()
+                                ch.close()
                             }
                             if(str.isEmpty()) return@forEach
-                            val response = Gson().fromJson(str, Response::class.java)
+                            val timestamp = System.nanoTime()
+                            val response = Gson().fromJson(str, ResponseStructure::class.java)
                             if(response.hash == null || response.type == null) return@forEach
-                            if(response.type == Response.Type.PONG) {
-                                val hash = response.hash
-                                service.pending.removeIf { it.hash == hash }
-                                ch.write(ByteBuffer.wrap("Ok".toByteArray()))
-                            }else if(response.type == Response.Type.RESULT) {
-                                service.callbacks.remove(response.hash)?.invoke(response.result ?: return@forEach)
+                            if(response.type == ResponseStructure.Type.PONG) {
+                                service.pending.removeIf { it.hash == response.hash }
+                            }else if(response.type == ResponseStructure.Type.RESULT) {
+                                val response1 = Response(response.success ?: return@forEach, response.result ?: return@forEach,
+                                    service.pending.find { it.hash == response.hash } ?: return@forEach, timestamp)
+                                service.callbacks.remove(response.hash)?.invoke(response1)
+                                service.pending.removeIf { it.hash == response.hash }
                             }
                         } catch (exc: JsonSyntaxException) {
                             service.disconnect()
+                            ch.close()
                         }
                     } else {
                         try {
                             if(read < 0) ch.close()
                             if(str.isEmpty()) return@forEach
                             val auth = Gson().fromJson(str, AuthenticationData::class.java)
-                            if(auth.type == null || auth.type != "AUTHENTICATION" || auth.name == null || auth.password == null) {
+                            if(auth.type != "AUTHENTICATION" || auth.name == null || auth.password == null) {
                                 ch.close()
+                            }
+                            if(!bridge.services.any { it.name == auth.name }) {
+                                ch.write(ByteBuffer.wrap("${Gson().toJson(NotFound)}\n".toByteArray()))
+                                return@forEach
+                            }
+                            if(!bridge.services.any { it.name == auth.name && !it.isReady }) {
+                                ch.write(ByteBuffer.wrap("${Gson().toJson(ServiceBusy)}\n".toByteArray()))
+                                return@forEach
                             }
                             val found = bridge.services.find { !it.isReady && it.name == auth.name && it.password == auth.password }
                             if(found != null) {
                                 found.channel = ch
                                 found.onConnect()
+                            } else {
+                                ch.write(ByteBuffer.wrap("${Gson().toJson(WrongPassword)}\n".toByteArray()))
                             }
                         } catch (exc: JsonSyntaxException) {
                             ch.close()
@@ -90,7 +99,7 @@ class SocketThread(private val bridge: OCBridge, private val port: Int): Thread(
                 }
             }
             selector.keys().filter { !it.isValid }.forEach { key ->
-                bridge.services.find { it.channel == (key.channel() as SocketChannel) }?.channel = null
+                bridge.services.find { it.channel == (key.channel() as SocketChannel) }?.disconnect()
                 key.cancel()
             }
             bridge.services.forEach { it.pingTick() }

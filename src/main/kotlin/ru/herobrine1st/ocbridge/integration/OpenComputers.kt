@@ -5,15 +5,30 @@ import com.google.gson.JsonPrimitive
 import ru.herobrine1st.ocbridge.data.CallStackEntry
 import ru.herobrine1st.ocbridge.data.CodeEntry
 import ru.herobrine1st.ocbridge.data.FunctionEntry
-import ru.herobrine1st.ocbridge.data.RootStructure
+import ru.herobrine1st.ocbridge.data.RequestStructure
 import ru.herobrine1st.ocbridge.network.Service
+import java.sql.Timestamp
+import kotlin.jvm.Throws
 
 data class PreviousEntryResult(val index: Int)
 
 
-class Request(private val structure: RootStructure, private val service: Service) {
-    fun execute(callback: (JsonArray) -> Unit) {
+class Request(private val structure: RequestStructure, private val service: Service) {
+    fun execute(callback: (Response) -> Unit) {
         service.executeRequest(structure, callback)
+    }
+}
+
+class OpenComputersError(msg: String): Exception(msg)
+
+class Response(val success: Boolean, val result: JsonArray, val request: RequestStructure, timestamp: Long) {
+    val time: Long = timestamp - request.timestamp
+
+    @Throws(OpenComputersError::class)
+    fun throwIfError() {
+        if(!success) {
+            throw OpenComputersError(result.get(0)?.asString ?: "Unexpected error")
+        }
     }
 }
 
@@ -39,6 +54,6 @@ class RequestBuilder(private val hash: Long, private val service: Service) {
     }
 
     fun build(): Request {
-        return Request(RootStructure(RootStructure.Type.EXECUTE, hash, stack), service)
+        return Request(RequestStructure(RequestStructure.Type.EXECUTE, hash, stack), service)
     }
 }
