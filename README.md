@@ -2,6 +2,7 @@
 Библиотека для Kotlin/Java с клиентом OpenComputers для интеграции вашего приложения с OpenComputers.
 Пока без документации, даже javadoc нет.
 
+P.s. [библиотека JSON](https://pastebin.com/ji28sbxU), нужно кинуть в ``/lib/JSON.lua`` на стороне OpenComputers.
 # Фичи
 
 * Выполнение существующих функций на удаленном устройстве OpenComputers (без компиляции, быстрый способ)
