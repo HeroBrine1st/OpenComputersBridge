@@ -4,10 +4,10 @@ component = require "component"
 event = require "event"
 
 properties =
-    name: "1"
-    password: "abcd"
-    remote_address: "217.25.230.249"
-    remote_port: 1024
+    name: ""
+    password: ""
+    remote_address: "0.0.0.0"
+    remote_port: 0
     event_blacklist: 
         internet_ready: true
         touch: true
@@ -98,13 +98,16 @@ while true
                 password: properties.password
         elseif data.type == "SERVICE_NOT_FOUND"
             print("Wrong service name")
-            break
+            conn/close!
+            return
         elseif data.type == "SERVICE_BUSY"
             print("Service busy")
-            break
+            conn/close!
+            return
         elseif data.type == "WRONG_PASSWORD"
             print("Wrong password")
-            break
+            conn/close!
+            return
         elseif data.type == "PING" -- socket heartbeat
             conn\write json_encode 
                 type: "PONG"
@@ -150,7 +153,4 @@ while true
         conn\write json_encode
                 events: events
                 type: "EVENT"
-
-
-
 conn\close!
