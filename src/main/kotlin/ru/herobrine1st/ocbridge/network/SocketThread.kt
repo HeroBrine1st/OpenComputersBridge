@@ -14,7 +14,7 @@ import java.nio.channels.ServerSocketChannel
 import java.nio.channels.SocketChannel
 import kotlin.properties.Delegates
 
-object SocketThread: Thread() {
+object SocketThread : Thread() {
     var shouldStop = false
     private var port by Delegates.notNull<Int>()
     fun start(port: Int) {
@@ -69,63 +69,68 @@ object SocketThread: Thread() {
                     if(str.isEmpty()) return@forEach
                     val service = OCBridge.services.find { it.channel == ch }
                     if(service != null) {
-                        try {
-                            if(read < 0) {
-                                service.disconnect()
-                                ch.close()
-                            }
-                            if(str.isEmpty()) return@forEach
-                            val response = gson.fromJson(str, ResponseStructure::class.java)
-                            when (response.type) {
-                                null -> return@forEach
-                                ResponseStructure.Type.EVENT -> (response.events ?: return@forEach)
-                                    .filter { it.isJsonArray }
-                                    .map { it.asJsonArray }
-                                    .forEach { service.onEvent(it) }
-                                ResponseStructure.Type.MESSAGE -> service.onMessage(response.message ?: return@forEach)
-                                ResponseStructure.Type.PONG -> { // Опускаем проверку на наличие поля hash - оно обязательно, но его отсуствие не вызовет ошибок
-                                    service.pending.removeIf { it.hash == response.hash }
-                                }
-                                ResponseStructure.Type.RESULT -> {
-                                    val response1 = Response(
-                                        success = response.success ?: return@forEach,
-                                        result = response.result ?: return@forEach,
-                                        request = service.pending.find { it.hash == response.hash } ?: return@forEach,
-                                        timestamp = timestamp)
-                                    service.callbacks.remove(response.hash)?.invoke(response1)
-                                    service.pending.removeIf { it.hash == response.hash }
-                                }
-                            }
-                        } catch (exc: JsonSyntaxException) {
-                             service.disconnect()
-                             ch.close()
-                        }
-                    } else {
-                        try {
-                            if(read < 0) ch.close()
-                            if(str.isEmpty()) return@forEach
-                            val auth = gson.fromJson(str, AuthenticationData::class.java)
-                            if(auth.type != "AUTHENTICATION" || auth.name == null || auth.password == null) {
-                                ch.close()
-                            }
-                            if(!OCBridge.services.any { it.name == auth.name }) {
-                                ch.write(ByteBuffer.wrap("${gson.toJson(NotFound())}\n".toByteArray()))
-                                return@forEach
-                            }
-                            if(!OCBridge.services.any { it.name == auth.name && !it.isReady }) {
-                                ch.write(ByteBuffer.wrap("${gson.toJson(ServiceBusy())}\n".toByteArray()))
-                                return@forEach
-                            }
-                            val found = OCBridge.services.find { !it.isReady && it.name == auth.name && it.password == auth.password }
-                            if(found != null) {
-                                found.channel = ch
-                                found.onConnect()
-                            } else {
-                                ch.write(ByteBuffer.wrap("${gson.toJson(WrongPassword())}\n".toByteArray()))
-                            }
-                        } catch (exc: JsonSyntaxException) {
+                        if(read < 0) {
+                            service.disconnect()
                             ch.close()
                         }
+                        val response: ResponseStructure
+                        try {
+                            response = gson.fromJson(str, ResponseStructure::class.java)
+                        } catch(exc: JsonSyntaxException) {
+                            service.disconnect()
+                            ch.close()
+                            return@forEach
+                        }
+                        when(response.type) {
+                            ResponseStructure.Type.EVENT -> (response.events ?: return@forEach)
+                                .filter { it.isJsonArray }
+                                .map { it.asJsonArray }
+                                .forEach { service.onEvent(it) }
+                            ResponseStructure.Type.MESSAGE -> service.onMessage(response.message ?: return@forEach)
+                            ResponseStructure.Type.PONG -> { // Опускаем проверку на наличие поля hash - оно обязательно, но его отсуствие не вызовет ошибок
+                                service.pending.removeIf { it.hash == response.hash }
+                            }
+                            ResponseStructure.Type.RESULT -> {
+                                val response1 = Response(
+                                    success = response.success ?: return@forEach,
+                                    result = response.result ?: return@forEach,
+                                    request = service.pending.find { it.hash == response.hash } ?: return@forEach,
+                                    timestamp = timestamp)
+                                service.callbacks.remove(response.hash)?.invoke(response1)
+                                service.pending.removeIf { it.hash == response.hash }
+                            }
+                        }
+
+                    } else {
+
+                        if(read < 0) ch.close()
+                        val auth: AuthenticationData
+                        try {
+                            auth = gson.fromJson(str, AuthenticationData::class.java)
+                        } catch(exc: JsonSyntaxException) {
+                            ch.close()
+                            return@forEach
+                        }
+                        if(auth.type != "AUTHENTICATION" || auth.name == null || auth.password == null) {
+                            ch.close()
+                        }
+                        if(!OCBridge.services.any { it.name == auth.name }) {
+                            ch.write(ByteBuffer.wrap("${gson.toJson(NotFound())}\n".toByteArray()))
+                            return@forEach
+                        }
+                        if(!OCBridge.services.any { it.name == auth.name && !it.isReady }) {
+                            ch.write(ByteBuffer.wrap("${gson.toJson(ServiceBusy())}\n".toByteArray()))
+                            return@forEach
+                        }
+                        val found =
+                            OCBridge.services.find { !it.isReady && it.name == auth.name && it.password == auth.password }
+                        if(found != null) {
+                            found.channel = ch
+                            found.onConnect()
+                        } else {
+                            ch.write(ByteBuffer.wrap("${gson.toJson(WrongPassword())}\n".toByteArray()))
+                        }
+
                     }
                 }
             }
