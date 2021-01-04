@@ -7,6 +7,7 @@ import ru.herobrine1st.ocbridge.data.CodeEntry
 import ru.herobrine1st.ocbridge.data.FunctionEntry
 import ru.herobrine1st.ocbridge.data.RequestStructure
 import ru.herobrine1st.ocbridge.network.Service
+import java.lang.IllegalArgumentException
 
 data class PreviousEntryResult(val index: Int)
 
@@ -36,11 +37,12 @@ class RequestBuilder(private val hash: Long, private val service: Service) {
         val func = function.split(".")
         val args = ArrayList<JsonPrimitive>()
         arguments.forEach {
-            when (it) {
-                is String -> args += JsonPrimitive(it)
-                is Number -> args += JsonPrimitive(it)
-                is Boolean -> args += JsonPrimitive(it)
-                is PreviousEntryResult -> args += JsonPrimitive("$${it.index}")
+            args += when (it) {
+                is String -> JsonPrimitive(it)
+                is Number -> JsonPrimitive(it)
+                is Boolean -> JsonPrimitive(it)
+                is PreviousEntryResult -> JsonPrimitive("$${it.index}")
+                else -> throw IllegalArgumentException("Only Json primitives and PreviousEntryResult allowed here")
             }
         }
         stack += FunctionEntry(func, args)
