@@ -98,15 +98,15 @@ while true
                 password: properties.password
         elseif data.type == "SERVICE_NOT_FOUND"
             print("Wrong service name")
-            conn/close!
+            conn\close!
             return
         elseif data.type == "SERVICE_BUSY"
             print("Service busy")
-            conn/close!
+            conn\close!
             return
         elseif data.type == "WRONG_PASSWORD"
             print("Wrong password")
-            conn/close!
+            conn\close!
             return
         elseif data.type == "PING" -- socket heartbeat
             conn\write json_encode 
@@ -121,14 +121,12 @@ while true
                     res = execute_code(call.code)
                     success = res[1]
                     result = {table.unpack(res, 2, #res)}
-                    if not success
-                        break
                 elseif call.type == "FUNCTION"
                     args = for arg in *call.args
                         if type(arg) == "string"
-                            match = string.match arg, "^$(%d+)$"
+                            match, index = string.match arg, "^$(%d+)%[(%d+)%]$"
                             if match
-                                stack[match]
+                                stack[match][index]
                             else
                                 arg
                         else
@@ -136,9 +134,9 @@ while true
                     res = {process_method package.loaded, call.function, args}
                     success = res[1]
                     result = {table.unpack(res, 2, #res)}
-                    if not success
-                        break
-                table.insert stack, result[2]
+                if not success
+                    break
+                table.insert stack, result
             conn\write json_encode
                 type: "RESULT"
                 hash: data.hash
