@@ -130,7 +130,6 @@ object SocketThread : Thread() {
                         } else {
                             ch.write(ByteBuffer.wrap("${gson.toJson(WrongPassword())}\n".toByteArray()))
                         }
-
                     }
                 }
             }
@@ -139,9 +138,7 @@ object SocketThread : Thread() {
                 key.cancel()
             }
             OCBridge.services.forEach { it.heartbeat() }
-            if(shouldStop) {
-                break
-            }
+            if(shouldStop) break
         }
         selector.keys().forEach {
             it.channel().close()

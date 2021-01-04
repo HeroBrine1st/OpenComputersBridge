@@ -6,10 +6,7 @@ import java.lang.RuntimeException
 
 object OCBridge {
     val services = HashSet<Service>()
-    fun start(port: Int) {
-        SocketThread.start(port)
-        SocketThread.join() // TODO
-    }
+    fun start(port: Int) = SocketThread.start(port)
 
     /**
      * Stops OCBridge thread softly. Thread will stop in 5 seconds at maximum.
