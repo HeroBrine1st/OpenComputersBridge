@@ -148,7 +148,8 @@ while true
                     hash: data.hash
                     result: {json}
                     success: false
-            conn\write json
+            else
+                conn\write json
                 
     e = {event.pull(0.05)}
     events = {}
