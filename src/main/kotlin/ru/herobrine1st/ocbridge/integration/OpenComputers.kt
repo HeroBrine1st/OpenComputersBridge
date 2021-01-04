@@ -9,7 +9,7 @@ import ru.herobrine1st.ocbridge.data.RequestStructure
 import ru.herobrine1st.ocbridge.network.Service
 import java.lang.IllegalArgumentException
 
-data class PreviousEntryResult(val index: Int)
+data class PreviousEntryResult(val entryIndex: Int, val resultIndex: Int = 1)
 
 
 class Request(private val structure: RequestStructure, private val service: Service) {
@@ -41,7 +41,7 @@ class RequestBuilder(private val hash: Long, private val service: Service) {
                 is String -> JsonPrimitive(it)
                 is Number -> JsonPrimitive(it)
                 is Boolean -> JsonPrimitive(it)
-                is PreviousEntryResult -> JsonPrimitive("$${it.index}")
+                is PreviousEntryResult -> JsonPrimitive("$${it.entryIndex}[${it.resultIndex}]")
                 else -> throw IllegalArgumentException("Only Json primitives and PreviousEntryResult allowed here")
             }
         }

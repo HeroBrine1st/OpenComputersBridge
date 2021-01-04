@@ -138,6 +138,7 @@ while true
                     result = {table.unpack(res, 2, #res)}
                     if not success
                         break
+                table.insert stack, result[2]
             conn\write json_encode
                 type: "RESULT"
                 hash: data.hash
