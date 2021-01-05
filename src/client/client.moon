@@ -61,7 +61,7 @@ env.send_message = (msg) ->
         type: "MESSAGE"
         message: msg
 
-execute_code = (code) ->
+execute_code = (code) -> 
     res = {load(code, "=OCBridge", "t", env)}
     if not res[1]
         return res
@@ -117,7 +117,8 @@ while true
             local success, result
             env.getResultFromStack = (index) -> stack[index]
             for call in *data.call_stack
-                if call.type == "CODE"
+                if call.type == "CODE" -- TODO какая-то хрень при синтаксической ошибке
+                    -- Если синтаксическая ошибка, то ничего не отправляется
                     res = execute_code(call.code)
                     success = res[1]
                     result = {table.unpack(res, 2, #res)}
@@ -127,6 +128,8 @@ while true
                             match, index = string.match arg, "^$(%d+)%[(%d+)%]$"
                             if match
                                 stack[match][index]
+                            elseif arg == "$$"
+                                "$"
                             else
                                 arg
                         else
