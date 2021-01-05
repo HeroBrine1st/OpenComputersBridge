@@ -2,6 +2,7 @@ package ru.herobrine1st.ocbridge.network
 
 import com.google.gson.Gson
 import com.google.gson.JsonArray
+import ru.herobrine1st.ocbridge.OCBridge
 import ru.herobrine1st.ocbridge.data.PingRequest
 import ru.herobrine1st.ocbridge.data.RequestStructure
 import ru.herobrine1st.ocbridge.integration.RequestBuilder
@@ -52,7 +53,7 @@ abstract class Service(val name: String, val password: String) {
         if(!isReady) return
         if(pending.any { it.type == RequestStructure.Type.PING }
             && System.nanoTime() - lastPingTimestamp > 5 * 10.0.pow(9.0)) {
-                println("$name disconnected cause of no response")
+                SocketThread.logger.info("$name disconnected cause of no response")
                 disconnect()
         } else if (System.nanoTime() - lastPingTimestamp > 5 * 10.0.pow(9.0)) {
             var hash = Random.nextLong()

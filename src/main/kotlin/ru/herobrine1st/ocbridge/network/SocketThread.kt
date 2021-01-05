@@ -2,6 +2,8 @@ package ru.herobrine1st.ocbridge.network
 
 import com.google.gson.Gson
 import com.google.gson.JsonSyntaxException
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
 import ru.herobrine1st.ocbridge.OCBridge
 import ru.herobrine1st.ocbridge.data.*
 import ru.herobrine1st.ocbridge.integration.Response
@@ -13,8 +15,18 @@ import java.nio.channels.Selector
 import java.nio.channels.ServerSocketChannel
 import java.nio.channels.SocketChannel
 import kotlin.properties.Delegates
+import java.util.concurrent.FutureTask
 
-object SocketThread : Thread() {
+val gson = Gson()
+
+fun <T> SocketChannel.writeJson(obj: T) {
+    this.write(ByteBuffer.wrap(
+        "${gson.toJson(obj)}\n".toByteArray()
+    ))
+}
+
+object SocketThread : Thread("OCBridge Socket") {
+    val logger: Logger = LoggerFactory.getLogger(this::class.java)
     var shouldStop = false
     private var port by Delegates.notNull<Int>()
     fun start(port: Int) {
@@ -28,7 +40,6 @@ object SocketThread : Thread() {
 
     override fun run() {
         val selector = Selector.open()
-        val gson = Gson()
         val listenerChannel = ServerSocketChannel.open()
         listenerChannel.socket().reuseAddress = true
         listenerChannel.socket().bind(InetSocketAddress(port))
@@ -41,7 +52,7 @@ object SocketThread : Thread() {
                     val ch = (key.channel() as ServerSocketChannel).accept() ?: return@forEach
                     ch.configureBlocking(false)
                     ch.register(selector, SelectionKey.OP_READ)
-                    ch.write(ByteBuffer.wrap("${gson.toJson(AuthorizationRequired())}\n".toByteArray()))
+                    ch.writeJson(AuthorizationRequired())
                     return@forEach
                 }
                 val ch = (key.channel() as SocketChannel)
@@ -91,13 +102,22 @@ object SocketThread : Thread() {
                                 service.pending.removeIf { it.hash == response.hash }
                             }
                             ResponseStructure.Type.RESULT -> {
-                                val response1 = Response(
-                                    success = response.success ?: return@forEach,
-                                    result = response.result ?: return@forEach,
-                                    request = service.pending.find { it.hash == response.hash } ?: return@forEach,
-                                    timestamp = timestamp)
-                                service.callbacks.remove(response.hash)?.invoke(response1)
-                                service.pending.removeIf { it.hash == response.hash }
+                                val callback = service.callbacks.remove(response.hash)
+                                if(callback != null) {
+                                    val response1 = Response(
+                                        success = response.success ?: return@forEach,
+                                        result = response.result ?: return@forEach,
+                                        request = service.pending.find { it.hash == response.hash } ?: return@forEach,
+                                        timestamp = timestamp)
+                                    service.pending.removeIf { it.hash == response.hash }
+                                    FutureTask { // Может быть говнокод, впервые юзаю эту хрень; но мне нужно убрать это подальше от этого потока
+                                        try {
+                                            callback(response1)
+                                        } catch(exc: Exception) {
+                                            logger.error("Service ${service.name} have an uncaught exception in callback", exc)
+                                        }
+                                    }.run()
+                                }
                             }
                         }
 
@@ -115,11 +135,11 @@ object SocketThread : Thread() {
                             ch.close()
                         }
                         if(!OCBridge.services.any { it.name == auth.name }) {
-                            ch.write(ByteBuffer.wrap("${gson.toJson(NotFound())}\n".toByteArray()))
+                            ch.writeJson(NotFound())
                             return@forEach
                         }
                         if(!OCBridge.services.any { it.name == auth.name && !it.isReady }) {
-                            ch.write(ByteBuffer.wrap("${gson.toJson(ServiceBusy())}\n".toByteArray()))
+                            ch.writeJson(ServiceBusy())
                             return@forEach
                         }
                         val found =
@@ -128,7 +148,7 @@ object SocketThread : Thread() {
                             found.channel = ch
                             found.onConnect()
                         } else {
-                            ch.write(ByteBuffer.wrap("${gson.toJson(WrongPassword())}\n".toByteArray()))
+                            ch.writeJson(WrongPassword())
                         }
                     }
                 }
