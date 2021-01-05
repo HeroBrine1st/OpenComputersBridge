@@ -66,10 +66,14 @@ execute_code = (code) ->
     if not res[1]
         return res
     res2 = {pcall(res[1])}
+    if not res2[1]
+        res2[2] = debug.traceback(res2[2])
+        
     return res2
 
 while true
     if conn == nil
+        os.sleep(0.5)
         print("No connection found. Trying to connect...")
         conn = internet.socket(properties.remote_address, properties.remote_port)
         continue
@@ -137,14 +141,14 @@ while true
                     res = {process_method package.loaded, call.function, args}
                     success = res[1]
                     result = {table.unpack(res, 2, #res)}
+                table.insert stack, result
                 if not success
                     break
-                table.insert stack, result
             json_success, json_result = pcall json_encode, 
                 type: "RESULT"
                 hash: data.hash
                 result: result
-                success: success
+                success: not not success -- ебучая луа
             if not json_success
                 conn\write json_encode
                     type: "RESULT"
@@ -152,7 +156,7 @@ while true
                     result: {json_result}
                     success: false
             else
-                conn\write json
+                conn\write json_result
                 
     e = {event.pull(0.05)}
     events = {}
