@@ -140,7 +140,7 @@ while true
                 if not success
                     break
                 table.insert stack, result
-            json_success, json = pcall json_encode, 
+            json_success, json_result = pcall json_encode, 
                 type: "RESULT"
                 hash: data.hash
                 result: result
@@ -149,7 +149,7 @@ while true
                 conn\write json_encode
                     type: "RESULT"
                     hash: data.hash
-                    result: {json}
+                    result: {json_result}
                     success: false
             else
                 conn\write json
