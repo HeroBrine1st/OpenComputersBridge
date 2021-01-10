@@ -20,6 +20,7 @@ abstract class Service(val name: String, val password: String) {
         }
     val pending = ArrayList<RequestStructure>()
     val callbacks = HashMap<String, (Response) -> Unit>()
+    var pendingRemove: Boolean = false
     private var lastPingTimestamp = 0L
     val isReady
         get() = channel != null
@@ -49,7 +50,7 @@ abstract class Service(val name: String, val password: String) {
         pending += structure
     }
 
-    fun heartbeat() {
+    open fun heartbeat() {
         if(!isReady) return
         if(pending.any { it.type == RequestStructure.Type.PING }
             && System.nanoTime() - lastPingTimestamp > 5 * 10.0.pow(9.0)) {

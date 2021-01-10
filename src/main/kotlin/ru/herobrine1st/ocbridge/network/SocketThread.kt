@@ -134,16 +134,17 @@ object SocketThread : Thread("OCBridge Socket") {
                         if(auth.type != "AUTHENTICATION" || auth.name == null || auth.password == null) {
                             ch.close()
                         }
-                        if(!OCBridge.services.any { it.name == auth.name }) {
+                        val services = OCBridge.services.filter { !it.pendingRemove }
+                        if(!services.any { it.name == auth.name }) {
                             ch.writeJson(NotFound())
                             return@forEach
                         }
-                        if(!OCBridge.services.any { it.name == auth.name && !it.isReady }) {
+                        if(!services.any { it.name == auth.name && !it.isReady }) {
                             ch.writeJson(ServiceBusy())
                             return@forEach
                         }
                         val found =
-                            OCBridge.services.find { !it.isReady && it.name == auth.name && it.password == auth.password }
+                            services.find { !it.isReady && it.name == auth.name && it.password == auth.password }
                         if(found != null) {
                             found.channel = ch
                             found.onConnect()

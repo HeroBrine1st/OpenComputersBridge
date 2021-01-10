@@ -1,3 +1,5 @@
+@file:Suppress("MemberVisibilityCanBePrivate")
+
 package ru.herobrine1st.ocbridge
 
 import ru.herobrine1st.ocbridge.network.Service
@@ -22,4 +24,13 @@ object OCBridge {
         services.add(service)
     }
 
+    fun remove(service: Service) {
+        service.pendingRemove = true
+        service.disconnect()
+        services.remove(service)
+    }
+
+    fun remove(name: String) {
+        remove(services.find { it.name == name } ?: throw NoSuchElementException())
+    }
 }
