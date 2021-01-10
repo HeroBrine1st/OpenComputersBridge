@@ -10,19 +10,23 @@ import ru.herobrine1st.ocbridge.integration.Response
 import java.io.IOException
 import java.net.InetSocketAddress
 import java.nio.ByteBuffer
-import java.nio.channels.SelectionKey
-import java.nio.channels.Selector
-import java.nio.channels.ServerSocketChannel
-import java.nio.channels.SocketChannel
+import java.nio.channels.*
 import kotlin.properties.Delegates
 import java.util.concurrent.FutureTask
 
 val gson = Gson()
 
 fun <T> SocketChannel.writeJson(obj: T) {
-    this.write(ByteBuffer.wrap(
-        "${gson.toJson(obj)}\n".toByteArray()
-    ))
+    try {
+        this.write(
+            ByteBuffer.wrap(
+                "${gson.toJson(obj)}\n".toByteArray()
+            )
+        )
+    }catch(exc: IOException) {
+        SocketThread.logger.warn(exc.toString())
+        this.close() // SocketThread will check and deattach this invalid channel from attached service
+    }
 }
 
 object SocketThread : Thread("OCBridge Socket") {

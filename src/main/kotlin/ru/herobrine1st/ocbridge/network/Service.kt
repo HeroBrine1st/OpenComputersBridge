@@ -60,9 +60,7 @@ abstract class Service(val name: String, val password: String) {
             while(pending.any { it.hash == hash.toString() }) hash = Random.nextLong()
             val req = PingRequest(hash)
             pending.add(req)
-            channel?.write(ByteBuffer.wrap(
-                    "${Gson().toJson(req)}\n".toByteArray()
-                ))
+            channel?.writeJson(req)
             lastPingTimestamp = req.timestamp
         }
     }

@@ -2,6 +2,7 @@ json = require "JSON"
 internet = require "internet"
 component = require "component"
 event = require "event"
+computer = require "computer"
 
 properties =
     name: ""
@@ -56,7 +57,7 @@ env = setmetatable({}, { -- Эта метатаблица позволяет о�
         k, v = next(t)
       return k, v})
 
-env.send_message = (msg) -> 
+env.send_message = (msg) ->
     conn\write json_encode
         type: "MESSAGE"
         message: msg
@@ -88,82 +89,82 @@ while true
             break
         socket_data = socket_data .. new_data
 
-    continue if socket_data == ""
-    if not socket_data
-        conn = nil
-        continue
-    for request in *split(socket_data, "\n")
-        success, data = pcall(json.decode, request)
-        continue if not success
-        if data.type == "AUTHORIZATION_REQUIRED"
-            conn\write json_encode 
-                type: "AUTHENTICATION"
-                name: properties.name, 
-                password: properties.password
-        elseif data.type == "SERVICE_NOT_FOUND"
-            print("Wrong service name")
-            conn\close!
-            return
-        elseif data.type == "SERVICE_BUSY"
-            print("Service busy")
-            conn\close!
-            return
-        elseif data.type == "WRONG_PASSWORD"
-            print("Wrong password")
-            conn\close!
-            return
-        elseif data.type == "PING" -- socket heartbeat
-            conn\write json_encode 
-                type: "PONG"
-                hash: data.hash
-        elseif data.type == "EXECUTE"
-            stack = {}
-            local success, result
-            env.getResultFromStack = (index) -> stack[index]
-            for call in *data.call_stack
-                if call.type == "CODE" -- TODO какая-то хрень при синтаксической ошибке
-                    -- Если синтаксическая ошибка, то ничего не отправляется
-                    res = execute_code(call.code)
-                    success = res[1]
-                    result = {table.unpack(res, 2, #res)}
-                elseif call.type == "FUNCTION"
-                    args = for arg in *call.args
-                        if type(arg) == "string"
-                            match, index = string.match arg, "^$(%d+)%[(%d+)%]$"
-                            if match
-                                stack[match][index]
-                            elseif arg == "$$"
-                                "$"
+    if socket_data ~= ""
+        if not socket_data
+            conn = nil
+            continue
+        for request in *split(socket_data, "\n")
+            success, data = pcall(json.decode, request)
+            continue if not success
+            if data.type == "AUTHORIZATION_REQUIRED"
+                conn\write json_encode 
+                    type: "AUTHENTICATION"
+                    name: properties.name, 
+                    password: properties.password
+            elseif data.type == "SERVICE_NOT_FOUND"
+                print("Wrong service name")
+                conn\close!
+                return
+            elseif data.type == "SERVICE_BUSY"
+                print("Service busy")
+                conn\close!
+                return
+            elseif data.type == "WRONG_PASSWORD"
+                print("Wrong password")
+                conn\close!
+                return
+            elseif data.type == "PING" -- socket heartbeat
+                conn\write json_encode 
+                    type: "PONG"
+                    hash: data.hash
+            elseif data.type == "EXECUTE"
+                stack = {}
+                local success, result
+                env.getResultFromStack = (index) -> stack[index]
+                for call in *data.call_stack
+                    if call.type == "CODE" -- TODO какая-то хрень при синтаксической ошибке
+                        -- Если синтаксическая ошибка, то ничего не отправляется
+                        res = execute_code(call.code)
+                        success = res[1]
+                        result = {table.unpack(res, 2, #res)}
+                    elseif call.type == "FUNCTION"
+                        args = for arg in *call.args
+                            if type(arg) == "string"
+                                match, index = string.match arg, "^$(%d+)%[(%d+)%]$"
+                                if match
+                                    stack[match][index]
+                                elseif arg == "$$"
+                                    "$"
+                                else
+                                    arg
                             else
                                 arg
-                        else
-                            arg
-                    res = {process_method package.loaded, call.function, args}
-                    success = res[1]
-                    result = {table.unpack(res, 2, #res)}
-                table.insert stack, result
-                if not success
-                    break
-            json_success, json_result = pcall json_encode, 
-                type: "RESULT"
-                hash: data.hash
-                result: result
-                success: not not success -- ебучая луа
-            if not json_success
-                conn\write json_encode
+                        res = {process_method package.loaded, call.function, args}
+                        success = res[1]
+                        result = {table.unpack(res, 2, #res)}
+                    table.insert stack, result
+                    if not success
+                        break
+                json_success, json_result = pcall json_encode, 
                     type: "RESULT"
                     hash: data.hash
-                    result: {json_result}
-                    success: false
-            else
-                conn\write json_result
-                
-    e = {event.pull(0.05)}
+                    result: result
+                    success: not not success -- ебучая луа
+                if not json_success
+                    conn\write json_encode
+                        type: "RESULT"
+                        hash: data.hash
+                        result: {json_result}
+                        success: false
+                else
+                    conn\write json_result
+    end_ = computer.uptime() + 0.5
+    e = {event.pull(end_ - computer.uptime())}
     events = {}
     while #e > 0
         if not properties.event_blacklist[e[1]]
             table.insert(events, e)
-        e = {event.pull(0.05)}
+        e = {event.pull(end_ - computer.uptime())}
     if #events > 0
         conn\write json_encode
                 events: events
