@@ -18,11 +18,7 @@ val gson = Gson()
 
 fun <T> SocketChannel.writeJson(obj: T) {
     try {
-        this.write(
-            ByteBuffer.wrap(
-                "${gson.toJson(obj)}\n".toByteArray()
-            )
-        )
+        this.write(ByteBuffer.wrap("${gson.toJson(obj)}\n".toByteArray()))
     }catch(exc: IOException) {
         SocketThread.logger.warn(exc.toString())
         this.close() // SocketThread will check and deattach this invalid channel from attached service
