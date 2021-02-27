@@ -4,7 +4,7 @@ import logging
 from ocbridge.utils import model_to_bytes
 from socket import socket
 from typing import Optional
-from ocbridge.structure import *
+from ocbridge.data.structure import *
 logger = logging.getLogger("OCBridge")
 
 class Service(abc.ABC):
@@ -12,7 +12,7 @@ class Service(abc.ABC):
     name: str
     password: str
     pending_remove: bool
-    pending: list
+    pending: List[RequestStructure]
     callbacks: dict
     last_ping_timestamp: int
 
@@ -49,7 +49,7 @@ class Service(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def on_event(self, event: tuple):
+    def on_event(self, event: List):
         pass
 
     def heartbeat(self):

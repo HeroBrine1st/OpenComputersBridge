@@ -15,7 +15,7 @@ class TestService1: Service("1", "abcd") {
         println("Connected 1")
         this.request()
             .addMethod("computer.beep", 2000, 0.2)
-            .addCode("computer.beep(2000, 1)")
+            .addCode("require(\"computer\").beep(2000, 1)")
             .build()
             .execute {
                 println(it.result)

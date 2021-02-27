@@ -1,11 +1,12 @@
 import json
 import logging
-from selectors import DefaultSelector, EVENT_READ, EVENT_WRITE
+from json import JSONDecodeError
+from selectors import DefaultSelector, EVENT_READ
 from socket import socket
 from threading import Thread
 from pydantic import ValidationError
 
-from ocbridge.structure import *
+from ocbridge.data.structure import *
 from ocbridge.utils import json_to_bytes
 from service import Service
 
@@ -71,9 +72,10 @@ class BridgeServer(Thread):
             events = self.selector.select(timeout=5)
             for key, mask in events:
                 # FIXME 27.02.2021 тип всегда socket, но идея считает иначе
+                # P.s. проверить на тип нельзя - пострадает производительность
                 # noinspection PyTypeChecker
                 sock: socket = key.fileobj
-                if key.fileobj == self.listen_socket:
+                if sock == self.listen_socket:
                     conn, address = sock.accept()
                     logger.log(0, f"Peer {address} connected.")
                     # conn.getpeername()
@@ -105,7 +107,32 @@ class BridgeServer(Thread):
                             self.selector.unregister(conn)
                             service.unbind()
                             logger.log(0, f"Peer {conn.getpeername()} disconnected.")
-                        # TODO
+                        try:
+                            model = ResponseStructure(**json.loads(data))
+                        except (ValidationError, JSONDecodeError):
+                            logger.log(0, f"Peer {conn.getpeername()} is disconnected.")
+                            service.unbind()
+                            self.selector.unregister(conn)
+                            conn.close()
+                            return
+                        if model.type == ResponseStructure.Type.EVENT:
+                            for event in model.events:
+                                if isinstance(event, list):
+                                    service.on_event(event)
+                        elif model.type == ResponseStructure.Type.MESSAGE:
+                            service.on_message(model.message)
+                        elif model.type == ResponseStructure.Type.PONG:
+                            for pending in service.pending:
+                                if pending.hash == model.hash:
+                                    service.pending.remove(pending)
+                                    break
+                        elif model.type == ResponseStructure.Type.RESULT:
+                            for pending in service.pending:
+                                if pending.hash == model.hash:
+                                    service.pending.remove(pending)
+                                    break
+                            callback = service.callbacks.pop(model.hash)
+
                     else:
                         if read == -1:
                             logger.log(0, f"Peer {conn.getpeername()} disconnected.")
@@ -113,7 +140,7 @@ class BridgeServer(Thread):
                             conn.close()
                         try:
                             model = AuthenticationData(**json.loads(data))
-                        except ValidationError:
+                        except (ValidationError, JSONDecodeError):
                             logger.log(0, f"Peer {conn.getpeername()} is disconnected.")
                             self.selector.unregister(conn)
                             conn.close()
