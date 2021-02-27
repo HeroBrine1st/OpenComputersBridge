@@ -25,9 +25,25 @@ abstract class Service(val name: String, val password: String) {
     val isReady
         get() = channel != null
 
+    /**
+     * On connect client hook.
+     */
     abstract fun onConnect()
+
+    /**
+     * On disconnect client hook.
+     */
     abstract fun onDisconnect()
+
+    /**
+     * On message hook. Called when client passed a message to the bridge.
+     */
     abstract fun onMessage(message: String)
+
+    /**
+     * On event hook. Called when client has OpenComputers event(s).
+     * Events will dispatched one by one even if client sent more than one event.
+     */
     abstract fun onEvent(event: JsonArray)
 
     fun disconnect() {
@@ -36,6 +52,9 @@ abstract class Service(val name: String, val password: String) {
         onDisconnect()
     }
 
+    /**
+     * Create a request builder
+     */
     fun request(): RequestBuilder {
         var hash = Random.nextLong()
         while(pending.any { it.hash == hash.toString() }) hash = Random.nextLong()
