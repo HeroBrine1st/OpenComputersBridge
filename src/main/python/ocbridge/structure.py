@@ -59,6 +59,13 @@ class PingStructure(RequestStructure):
 
 ## RESPONSE ##
 
+# data class AuthenticationData(val type: String?, val name: String?, val password: String?)
+
+class AuthenticationData(BaseModel):
+    type = Field("AUTHENTICATION", const=True)
+    name: str
+    password: str
+
 class ResponseStructure(BaseModel):
     class Type(Enum):
         PONG = "PONG"

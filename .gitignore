@@ -1,5 +1,4 @@
 .idea
 .gradle
 build
-src/build/alarmer.moon
 venv
