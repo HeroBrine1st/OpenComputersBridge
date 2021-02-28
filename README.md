@@ -6,7 +6,6 @@ Kotlin/Java library and OpenComputers client for integrating into your applicati
 
 P.s. put [JSON library](https://pastebin.com/ji28sbxU) into ``/lib/JSON.lua`` on OpenComputers - it's a dependency of the client.
 # Features
-
 * Execution of existing functions on remote OpenComputers device (without compilation, the fastest way)
 * Execution of arbitrary lua code on remote OpenComputers device (with compilation, slow)
 * Events receiving with(out) filter (by default client ignores almost all user input events)
@@ -14,13 +13,10 @@ P.s. put [JSON library](https://pastebin.com/ji28sbxU) into ``/lib/JSON.lua`` on
 * If your client has frozen or crashed, server will disconnect from it in about 10 seconds
 
 # Future plans
-
 * Python library
-* Declare OpenComputers methods in library for fast developing
+* Declaration of OpenComputers methods in library for fast developing
 
 # How it works
-
-
 Device can connect to host over TCP protocol (without encryption), then select a service and authorize. Service can be created on the host side.
 If device is disconnected it can connect again, but two devices cannot connect to the same service at the same time.
 
