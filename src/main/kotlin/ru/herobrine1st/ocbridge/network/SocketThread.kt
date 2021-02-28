@@ -80,14 +80,14 @@ object SocketThread : Thread("OCBridge Socket") {
                     val service = OCBridge.services.find { it.channel == ch }
                     if(service != null) {
                         if(read < 0) {
-                            service.disconnect()
+                            service.unbind()
                             ch.close()
                         }
                         val response: ResponseStructure
                         try {
                             response = gson.fromJson(str, ResponseStructure::class.java)
                         } catch(exc: JsonSyntaxException) {
-                            service.disconnect()
+                            service.unbind()
                             ch.close()
                             return@forEach
                         }
@@ -137,15 +137,14 @@ object SocketThread : Thread("OCBridge Socket") {
                             foundService.isNotReady -> ch.writeJson(ServiceBusy())
                             foundService.password != auth.password -> ch.writeJson(WrongPassword())
                             else -> {
-                                foundService.channel = ch
-                                foundService.onConnect()
+                                foundService.bind(ch)
                             }
                         }
                     }
                 }
             }
             selector.keys().filter { !it.isValid }.forEach { key ->
-                OCBridge.services.find { it.channel == (key.channel() as SocketChannel) }?.disconnect()
+                OCBridge.services.find { it.channel == (key.channel() as SocketChannel) }?.unbind()
                 key.cancel()
             }
             OCBridge.services.forEach { it.heartbeat() }

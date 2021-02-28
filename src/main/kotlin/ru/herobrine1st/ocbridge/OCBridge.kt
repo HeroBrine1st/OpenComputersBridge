@@ -41,7 +41,7 @@ object OCBridge {
      */
     fun remove(service: Service) {
         service.pendingRemove = true
-        service.disconnect()
+        service.unbind()
         services.remove(service)
     }
 

@@ -2,7 +2,6 @@ package ru.herobrine1st.ocbridge.network
 
 import com.google.gson.Gson
 import com.google.gson.JsonArray
-import ru.herobrine1st.ocbridge.OCBridge
 import ru.herobrine1st.ocbridge.data.PingRequest
 import ru.herobrine1st.ocbridge.data.RequestStructure
 import ru.herobrine1st.ocbridge.integration.RequestBuilder
@@ -14,16 +13,11 @@ import kotlin.random.Random
 
 abstract class Service(val name: String, val password: String) {
     var channel: SocketChannel? = null
-        set(value) {
-            field = value
-            pending.clear()
-        }
+        private set
     val pending = ArrayList<RequestStructure>()
     val callbacks = HashMap<String, (Response) -> Unit>()
     var pendingRemove: Boolean = false
     private var lastPingTimestamp = 0L
-    val isReady
-        get() = channel != null
     val isNotReady
         get() = channel == null
 
@@ -48,7 +42,13 @@ abstract class Service(val name: String, val password: String) {
      */
     abstract fun onEvent(event: JsonArray)
 
-    fun disconnect() {
+    fun bind(channel: SocketChannel) {
+        this.channel = channel
+        onConnect()
+        pending.clear()
+    }
+
+    fun unbind() {
         channel?.close()
         channel = null
         onDisconnect()
@@ -64,7 +64,7 @@ abstract class Service(val name: String, val password: String) {
     }
 
     fun executeRequest(structure: RequestStructure, callback: (Response) -> Unit) {
-        if(!isReady) throw IllegalStateException()
+        if(isNotReady) throw IllegalStateException()
         channel!!.write(ByteBuffer.wrap("${Gson().toJson(structure)}\n".toByteArray()))
         structure.timestamp = System.nanoTime()
         callbacks[structure.hash] = callback
@@ -72,17 +72,17 @@ abstract class Service(val name: String, val password: String) {
     }
 
     open fun heartbeat() {
-        if(!isReady) return
+        if(isNotReady) return
         if(pending.any { it.type == RequestStructure.Type.PING }
             && System.nanoTime() - lastPingTimestamp > 5 * 10.0.pow(9.0)) {
                 SocketThread.logger.info("$name disconnected cause of no response")
-                disconnect()
+                unbind()
         } else if (System.nanoTime() - lastPingTimestamp > 5 * 10.0.pow(9.0)) {
             var hash = Random.nextLong()
             while(pending.any { it.hash == hash.toString() }) hash = Random.nextLong()
             val req = PingRequest(hash)
             pending.add(req)
-            channel?.writeJson(req)
+            channel!!.writeJson(req)
             lastPingTimestamp = req.timestamp
         }
     }
