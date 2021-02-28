@@ -1,30 +1,30 @@
 # OpenComputersBridge
-Библиотека для Kotlin/Java с клиентом OpenComputers для интеграции вашего приложения с OpenComputers.
-Пока без документации, даже javadoc нет.
+Kotlin/Java library and OpenComputers client for integrating into your application.
 
-P.s. [библиотека JSON](https://pastebin.com/ji28sbxU), нужно кинуть в ``/lib/JSON.lua`` на стороне OpenComputers.
-# Фичи
+P.s. [JSON library](https://pastebin.com/ji28sbxU), put it into ``/lib/JSON.lua`` on OpenComputers.
+# Features
 
-* Выполнение существующих функций на удаленном устройстве OpenComputers (без компиляции, быстрый способ)
-* Выполнение произвольного кода на удаленном устройстве OpenComputers (с компиляцией, медленный способ)
-* Получение ивентов с фильтром (например, по умолчанию игнорируются множество ивентов пользовательского ввода)
-* Возможность отправки любых сообщений через протокол из, например, event.listen (что крайне не рекомендуется, но возможность есть)
-* Соединение с клиентом будет разорвано автоматически максимум через 10 секунд, если компьютер перестал функционировать (например, выгрузился чанк или отключился сервер), а соединение не разорвалось.
+* Execution of existing functions on remote OpenComputers device (without compilation, fastest way)
+* Execution of arbitrary lua code on remote OpenComputers device (with compilation, slow)
+* Events receiving with(out) filter (by default client ignores almost all user input events)
+* Ability to send any messages over protocol.
+* If your client has freezed or crashed, server will disconnect from it in about 10 seconds
 
-# Планы
+# Future plans
 
-* Написать эту же библиотеку на питоне
+* Python library
+* Declare OpenComputers methods in library for fast developing
 
-# Описание работы 
+# How it works
 
-Устройство подключается к библиотеке через протокол TCP (без шифрования), выбирает т.н. сервис, затем авторизуется и поддерживает соединение с библиотекой. 
-Сервис создается приложением на стороне хоста.
 
-При разрыве соединения устройство может подключиться снова, но одновременно два устройства не могут подключиться к одному сервису.
+Device can connect to host over TCP protocol (without encryption), then select a service and authorize. Service can be created on the host side.
+If device is disconnected it can connect again, but two devices cannot connect to the one service at the same time.
 
-При удаленном вызове устройству передается т.н. очередь вызовов, из которой он будет брать операции для выполнения, выполнять и сохранять результат в память до полного завершения выполнения запроса.
+When host executing a request, device is receiving a "call stack" that it will execute one-by-one and save results until request is fully executed. 
+You can use any of previous stack entries results for use in next.
 
-Пример запроса:
+Example request:
 
 ```
 {
@@ -41,4 +41,4 @@ P.s. [библиотека JSON](https://pastebin.com/ji28sbxU), нужно ки
   ]
  }
 ```
-Выполняет computer.beep(2000, 0.5) два раза.
+Performs ``computer.beep(2000, 0.5)`` twice.
