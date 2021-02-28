@@ -1,14 +1,16 @@
+[Русская версия](https://github.com/HeroBrine1st/OpenComputersBridge/blob/master/README-RU.md)
 # OpenComputersBridge
 Kotlin/Java library and OpenComputers client for integrating into your application.
 
-P.s. [JSON library](https://pastebin.com/ji28sbxU), put it into ``/lib/JSON.lua`` on OpenComputers.
+[Example application](https://github.com/HeroBrine1st/OpenComputersBridge/blob/master/src/main/kotlin/ru/herobrine1st/ocbridge/Demo.kt)
+P.s. put [JSON library](https://pastebin.com/ji28sbxU) into ``/lib/JSON.lua`` on OpenComputers - it's a dependency of the client.
 # Features
 
-* Execution of existing functions on remote OpenComputers device (without compilation, fastest way)
+* Execution of existing functions on remote OpenComputers device (without compilation, the fastest way)
 * Execution of arbitrary lua code on remote OpenComputers device (with compilation, slow)
 * Events receiving with(out) filter (by default client ignores almost all user input events)
 * Ability to send any messages over protocol.
-* If your client has freezed or crashed, server will disconnect from it in about 10 seconds
+* If your client has frozen or crashed, server will disconnect from it in about 10 seconds
 
 # Future plans
 
