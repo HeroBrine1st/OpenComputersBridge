@@ -139,7 +139,7 @@ while true
                                     arg
                             else
                                 arg
-                        res = {process_method package.loaded, call.function, args}
+                        res = {process_method env, call.function, args}
                         success = res[1]
                         result = {table.unpack(res, 2, #res)}
                     table.insert stack, result
