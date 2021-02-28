@@ -8,7 +8,7 @@ P.s. put [JSON library](https://pastebin.com/ji28sbxU) into ``/lib/JSON.lua`` on
 # Features
 * Execution of existing functions on remote OpenComputers device (without compilation, the fastest way)
 * Execution of arbitrary lua code on remote OpenComputers device (with compilation, slow)
-* Events receiving with(out) filter (by default client ignores almost all user input events)
+* Event receiving with(out) filter (by default client ignores almost all user input events)
 * Ability to send any messages over protocol.
 * If your client has frozen or crashed, server will disconnect from it in about 10 seconds
 

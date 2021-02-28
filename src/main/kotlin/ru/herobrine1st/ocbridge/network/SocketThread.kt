@@ -21,7 +21,7 @@ fun <T> SocketChannel.writeJson(obj: T) {
         this.write(ByteBuffer.wrap("${gson.toJson(obj)}\n".toByteArray()))
     }catch(exc: IOException) {
         SocketThread.logger.warn(exc.toString())
-        this.close() // SocketThread will check and deattach this invalid channel from attached service
+        this.close() // SocketThread will check and detach this invalid channel from attached service
     }
 }
 
@@ -72,8 +72,7 @@ object SocketThread : Thread("OCBridge Socket") {
                             stringBuilder.append(String(bytes))
                             buf.clear()
                         }
-                    } catch(e: IOException) { // I dunno what I should do in this case
-                        // e.printStackTrace()
+                    } catch(e: IOException) {
                         return@forEach
                     }
                     val str = stringBuilder.toString()
@@ -98,9 +97,7 @@ object SocketThread : Thread("OCBridge Socket") {
                                 .map { it.asJsonArray }
                                 .forEach { service.onEvent(it) }
                             ResponseStructure.Type.MESSAGE -> service.onMessage(response.message ?: return@forEach)
-                            ResponseStructure.Type.PONG -> { // Опускаем проверку на наличие поля hash - оно обязательно, но его отсуствие не вызовет ошибок
-                                service.pending.removeIf { it.hash == response.hash }
-                            }
+                            ResponseStructure.Type.PONG -> service.pending.removeIf { it.hash == response.hash }
                             ResponseStructure.Type.RESULT -> {
                                 val callback = service.callbacks.remove(response.hash)
                                 if(callback != null) {
@@ -109,8 +106,8 @@ object SocketThread : Thread("OCBridge Socket") {
                                         result = response.result ?: return@forEach,
                                         request = service.pending.find { it.hash == response.hash } ?: return@forEach,
                                         timestamp = timestamp)
-                                    service.pending.removeIf { it.hash == response.hash }
-                                    FutureTask { // Может быть говнокод, впервые юзаю эту хрень; но мне нужно убрать это подальше от этого потока
+                                    service.pending.remove(response1.request)
+                                    FutureTask { // Может быть говнокод, впервые юзаю эту хрень, но мне нужно убрать это подальше от этого потока
                                         try {
                                             callback(response1)
                                         } catch(exc: Exception) {
@@ -134,22 +131,15 @@ object SocketThread : Thread("OCBridge Socket") {
                         if(auth.type != "AUTHENTICATION" || auth.name == null || auth.password == null) {
                             ch.close()
                         }
-                        val services = OCBridge.services.filter { !it.pendingRemove }
-                        if(!services.any { it.name == auth.name }) {
-                            ch.writeJson(NotFound())
-                            return@forEach
-                        }
-                        if(!services.any { it.name == auth.name && !it.isReady }) {
-                            ch.writeJson(ServiceBusy())
-                            return@forEach
-                        }
-                        val found =
-                            services.find { !it.isReady && it.name == auth.name && it.password == auth.password }
-                        if(found != null) {
-                            found.channel = ch
-                            found.onConnect()
-                        } else {
-                            ch.writeJson(WrongPassword())
+                        val foundService = OCBridge.services.find { !it.pendingRemove && it.name == auth.name }
+                        when {
+                            foundService == null -> ch.writeJson(NotFound())
+                            foundService.isNotReady -> ch.writeJson(ServiceBusy())
+                            foundService.password != auth.password -> ch.writeJson(WrongPassword())
+                            else -> {
+                                foundService.channel = ch
+                                foundService.onConnect()
+                            }
                         }
                     }
                 }

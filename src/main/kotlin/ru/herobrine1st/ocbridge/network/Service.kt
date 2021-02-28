@@ -24,6 +24,8 @@ abstract class Service(val name: String, val password: String) {
     private var lastPingTimestamp = 0L
     val isReady
         get() = channel != null
+    val isNotReady
+        get() = channel == null
 
     /**
      * On connect client hook.
