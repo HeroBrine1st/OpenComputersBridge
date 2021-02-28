@@ -2,6 +2,7 @@
 Библиотека для Kotlin/Java с клиентом OpenComputers для интеграции в ваше приложение.
 
 [Пример приложения](https://github.com/HeroBrine1st/OpenComputersBridge/blob/master/src/main/kotlin/ru/herobrine1st/ocbridge/Demo.kt)
+
 P.s. [библиотека JSON](https://pastebin.com/ji28sbxU), нужно кинуть в ``/lib/JSON.lua`` на стороне OpenComputers.
 # Фичи
 

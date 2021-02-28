@@ -3,6 +3,7 @@
 Kotlin/Java library and OpenComputers client for integrating into your application.
 
 [Example application](https://github.com/HeroBrine1st/OpenComputersBridge/blob/master/src/main/kotlin/ru/herobrine1st/ocbridge/Demo.kt)
+
 P.s. put [JSON library](https://pastebin.com/ji28sbxU) into ``/lib/JSON.lua`` on OpenComputers - it's a dependency of the client.
 # Features
 
