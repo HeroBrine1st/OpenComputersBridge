@@ -1,24 +1,21 @@
-@file:Suppress("MemberVisibilityCanBePrivate")
-
 package ru.herobrine1st.ocbridge
 
 import ru.herobrine1st.ocbridge.network.Service
 import ru.herobrine1st.ocbridge.network.SocketThread
 import java.lang.RuntimeException
-
+@Suppress("MemberVisibilityCanBePrivate", "unused")
 object OCBridge {
     val services = HashSet<Service>()
 
     /**
      * Starts the bridge with given port
-     * @param port: port which bridge will listen
+     * @param port: port which bridge will listen to
      */
-
     fun start(port: Int) = SocketThread.start(port)
 
     /**
      * Stops OCBridge thread softly. Thread will stop in 5 seconds at maximum.
-     * All connections will be closed, but not every pending operation will be finished.
+     * All connections will be closed, but pending requests might not be satisfied.
      */
     fun stop() {
         SocketThread.shouldStop = true
@@ -26,7 +23,7 @@ object OCBridge {
 
 
     /**
-     * Adds service to the bridge
+     * Adds service to the bridge. You can execute it dynamically, even when there are connected clients.
      * @param service: service to add
      */
     fun add(service: Service) {
@@ -36,7 +33,8 @@ object OCBridge {
     }
 
     /**
-     * Removes service from the bridge
+     * Removes provided service from the bridge. You can execute it dynamically, but if there's connected to the service client it's not recommended.
+     * Connection will be closed, but pending requests of the service might not be satisfied.
      * @param service: service to remove
      */
     fun remove(service: Service) {
@@ -48,6 +46,7 @@ object OCBridge {
     /**
      * Removes service from the bridge
      * @param name: name of service you want to remove
+     * @see remove(service: Service)
      */
     fun remove(name: String) {
         remove(services.find { it.name == name } ?: throw NoSuchElementException())

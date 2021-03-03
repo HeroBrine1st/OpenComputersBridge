@@ -81,7 +81,7 @@ object SocketThread : Thread("OCBridge Socket") {
                     if(service != null) {
                         if(read < 0) {
                             service.unbind()
-                            ch.close()
+                            return@forEach
                         }
                         val response: ResponseStructure
                         try {
@@ -136,9 +136,7 @@ object SocketThread : Thread("OCBridge Socket") {
                             foundService == null -> ch.writeJson(NotFound())
                             foundService.isNotReady -> ch.writeJson(ServiceBusy())
                             foundService.password != auth.password -> ch.writeJson(WrongPassword())
-                            else -> {
-                                foundService.bind(ch)
-                            }
+                            else -> foundService.bind(ch)
                         }
                     }
                 }
@@ -154,5 +152,6 @@ object SocketThread : Thread("OCBridge Socket") {
             it.channel().close()
             it.cancel()
         }
+        selector.close()
     }
 }
