@@ -3,22 +3,28 @@ package ru.herobrine1st.ocbridge
 import ru.herobrine1st.ocbridge.network.Service
 import ru.herobrine1st.ocbridge.network.SocketThread
 import java.lang.RuntimeException
+import java.util.*
+
 @Suppress("MemberVisibilityCanBePrivate", "unused")
 object OCBridge {
     val services = HashSet<Service>()
+    private lateinit var socketThread: SocketThread
 
     /**
      * Starts the bridge with given port
      * @param port: port which bridge will listen to
      */
-    fun start(port: Int) = SocketThread.start(port)
+    fun start(port: Int) {
+        socketThread = SocketThread(port)
+        socketThread.start()
+    }
 
     /**
      * Stops OCBridge thread softly. Thread will stop in 5 seconds at maximum.
      * All connections will be closed, but pending requests might not be satisfied.
      */
     fun stop() {
-        SocketThread.shouldStop = true
+        socketThread.shouldStop = true
     }
 
 
@@ -27,7 +33,7 @@ object OCBridge {
      * @param service: service to add
      */
     fun add(service: Service) {
-        if(services.any { it.name == service.name })
+        if (services.any { it.name == service.name })
             throw RuntimeException("Service with name \"${service.name}\" already exists")
         services.add(service)
     }

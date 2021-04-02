@@ -25,18 +25,11 @@ fun <T> SocketChannel.writeJson(obj: T) {
     }
 }
 
-object SocketThread : Thread("OCBridge Socket") {
-    val logger: Logger = LoggerFactory.getLogger(this::class.java)
+class SocketThread(private val port: Int) : Thread("OCBridge Socket") {
+    companion object {
+        val logger: Logger = LoggerFactory.getLogger(this::class.java)
+    }
     var shouldStop = false
-    private var port by Delegates.notNull<Int>()
-    fun start(port: Int) {
-        this.port = port
-        super.start()
-    }
-
-    override fun start() {
-        throw IllegalStateException()
-    }
 
     override fun run() {
         val selector = Selector.open()
